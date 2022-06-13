@@ -44,6 +44,7 @@ def getMediaTypes(drive):
 
     # List with returned mediatype values
     mediaTypesOut = []
+    deviceType = None
 
     # Low-level device name of device assigned to logical drive
     driveDevice =  "\\\\.\\" + drive + ":"
@@ -88,6 +89,10 @@ def getMediaTypes(drive):
                                                None,
                                                2048)
 
+        # Device type
+        deviceCode = struct.unpack("<I", mediaInfo[0:4])[0]
+        deviceType = lookupDeviceType(deviceCode)
+
         # Number of DEVICE_MEDIA_INFO structures to read
         mediaInfoCount = struct.unpack("<I", mediaInfo[4:8])[0]
 
@@ -119,7 +124,85 @@ def getMediaTypes(drive):
     # Remove duplicate entries from output list
     mediaTypesOut = list(set(mediaTypesOut))
 
-    return mediaTypesOut
+    return mediaTypesOut, deviceType
+
+def lookupDeviceType(deviceCode):
+    """
+    Return device type string from device code.
+
+    Based on:
+
+    https://github.com/mhammond/pywin32/blob/main/win32/Lib/winioctlcon.py
+
+    (Convert original hex to decimal values)
+    """
+    deviceTypes = {
+    1: "FILE_DEVICE_BEEP",
+    2: "FILE_DEVICE_CD_ROM",
+    3: "FILE_DEVICE_CD_ROM_FILE_SYSTEM",
+    4: "FILE_DEVICE_CONTROLLER",
+    5: "FILE_DEVICE_DATALINK",
+    6: "FILE_DEVICE_DFS",
+    7: "FILE_DEVICE_DISK",
+    8: "FILE_DEVICE_DISK_FILE_SYSTEM",
+    9: "FILE_DEVICE_FILE_SYSTEM",
+    10: "FILE_DEVICE_INPORT_PORT",
+    11: "FILE_DEVICE_KEYBOARD",
+    12: "FILE_DEVICE_MAILSLOT",
+    13: "FILE_DEVICE_MIDI_IN",
+    14: "FILE_DEVICE_MIDI_OUT",
+    15: "FILE_DEVICE_MOUSE",
+    16: "FILE_DEVICE_MULTI_UNC_PROVIDER",
+    17: "FILE_DEVICE_NAMED_PIPE",
+    18: "FILE_DEVICE_NETWORK",
+    19: "FILE_DEVICE_NETWORK_BROWSER",
+    20: "FILE_DEVICE_NETWORK_FILE_SYSTEM",
+    21: "FILE_DEVICE_NULL",
+    22: "FILE_DEVICE_PARALLEL_PORT",
+    23: "FILE_DEVICE_PHYSICAL_NETCARD",
+    24: "FILE_DEVICE_PRINTER",
+    25: "FILE_DEVICE_SCANNER",
+    26: "FILE_DEVICE_SERIAL_MOUSE_PORT",
+    27: "FILE_DEVICE_SERIAL_PORT",
+    28: "FILE_DEVICE_SCREEN",
+    29: "FILE_DEVICE_SOUND",
+    30: "FILE_DEVICE_STREAMS",
+    31: "FILE_DEVICE_TAPE",
+    32: "FILE_DEVICE_TAPE_FILE_SYSTEM",
+    33: "FILE_DEVICE_TRANSPORT",
+    34: "FILE_DEVICE_UNKNOWN",
+    35: "FILE_DEVICE_VIDEO",
+    36: "FILE_DEVICE_VIRTUAL_DISK",
+    37: "FILE_DEVICE_WAVE_IN",
+    38: "FILE_DEVICE_WAVE_OUT",
+    39: "FILE_DEVICE_8042_PORT",
+    40: "FILE_DEVICE_NETWORK_REDIRECTOR",
+    41: "FILE_DEVICE_BATTERY",
+    42: "FILE_DEVICE_BUS_EXTENDER",
+    43: "FILE_DEVICE_MODEM",
+    44: "FILE_DEVICE_VDM",
+    45: "FILE_DEVICE_MASS_STORAGE",
+    46: "FILE_DEVICE_SMB",
+    47: "FILE_DEVICE_KS",
+    48: "FILE_DEVICE_CHANGER",
+    49: "FILE_DEVICE_SMARTCARD",
+    50: "FILE_DEVICE_ACPI",
+    51: "FILE_DEVICE_DVD",
+    52: "FILE_DEVICE_FULLSCREEN_VIDEO",
+    53: "FILE_DEVICE_DFS_FILE_SYSTEM",
+    54: "FILE_DEVICE_DFS_VOLUME",
+    55: "FILE_DEVICE_SERENUM",
+    56: "FILE_DEVICE_TERMSRV",
+    57: "FILE_DEVICE_KSEC",
+    58: "FILE_DEVICE_FIPS",
+    59: "FILE_DEVICE_INFINIBAND",
+    }
+
+    try:
+        deviceType = deviceTypes[deviceCode]
+    except KeyError:
+        deviceType = "Unknown"
+    return deviceType
 
 
 def lookupMediaType(mediaTypeCode):
@@ -246,16 +329,16 @@ def main():
     # List of drives as entered by user
     myDrives = args.drives   
 
-    print("------------------------")
-
     for drive in myDrives:
         # Strip any trailing colons
         drive = drive.strip(":")
-        mediaTypes = getMediaTypes(drive)
-        print("Drive " + drive + ":")
+        mediaTypes, deviceType = getMediaTypes(drive)
+        print("Drive " + drive + ":\n=============")
+        if deviceType:
+            print("Device type: " + deviceType)
+        print("Media types:")
         for mediaType in mediaTypes:
-            print("            " + mediaType)
-        print("------------------------")
+            print("             " + mediaType)
 
 if __name__ == "__main__":
     main()
