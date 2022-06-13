@@ -83,17 +83,13 @@ def getMediaTypes(drive):
 
     # Get media types using IOCTL_STORAGE_GET_MEDIA_TYPES_EX method
     try:
-        mediaTypes = win32file.DeviceIoControl(handle,
+        mediaInfo = win32file.DeviceIoControl(handle,
                                                winioctlcon.IOCTL_STORAGE_GET_MEDIA_TYPES_EX,
                                                None,
                                                2048)
 
-        # Resulting output (mediaTypes) documented here:
-        #
-        # https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-get_media_types
-
         # Number of DEVICE_MEDIA_INFO structures to read
-        mediaInfoCount = struct.unpack("<I", mediaTypes[4:8])[0]
+        mediaInfoCount = struct.unpack("<I", mediaInfo[4:8])[0]
 
         # Remaining bytes are one or more 32-byte DEVICE_MEDIA_INFO structures.
         # documented here:
@@ -110,7 +106,7 @@ def getMediaTypes(drive):
         for _ in range(mediaInfoCount):
             # Skip 8 byte cylinders value
             offset += 8
-            mediaTypeCode = struct.unpack("<I", mediaTypes[offset:offset + 4])[0]
+            mediaTypeCode = struct.unpack("<I", mediaInfo[offset:offset + 4])[0]
             # Lookup corresponding media type string and add to output list
             mediaType = lookupMediaType(mediaTypeCode)
             mediaTypesOut.append(mediaType)
