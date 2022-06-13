@@ -1,5 +1,6 @@
 import sys
 import struct
+import argparse
 import win32api
 import win32file
 import winioctlcon
@@ -10,20 +11,19 @@ Windows drives using Python's Windows API wrapper interface.
 Johan van der Knijff, KB, National Library of the Netherlands
 """
 
-def getDrives():
-    """
-    Helper function that returns
-    list of all available logical drives
-    """
 
-    drives = win32api.GetLogicalDriveStrings()
-    # Var drives is one string with weird 3-byte separator
-    sepB = b'\x3a\x5c\x00'
-    # Separator string
-    sepS = sepB.decode('UTF-8')
-    drives = drives.split(sepS)[:-1]
+def parseCommandLine(parser):
+    """Parse command line"""
+    # Add arguments
+    parser.add_argument('drives',
+                        action="store",
+                        type=str,
+                        nargs='+',
+                        help="logical drive name (repeatable")
+    # Parse arguments
+    args = parser.parse_args()
 
-    return drives
+    return args
 
 
 def getMediaTypes(drive):
@@ -241,15 +241,25 @@ def main():
     the actual media type
     """
 
-    myDrives = getDrives()    
-    #myDrives = ["A", "C", "D", "E"]
+    # Create argument parser
+    parser = argparse.ArgumentParser(
+        description="detect storage media type of logical drive")
+    
+    args = parseCommandLine(parser)
+
+    # List of drives as entered by user
+    myDrives = args.drives   
+
+    print("------------------------")
 
     for drive in myDrives:
+        # Strip any trailing colons
+        drive = drive.strip(":")
         mediaTypes = getMediaTypes(drive)
         print("Drive " + drive + ":")
         for mediaType in mediaTypes:
-            print("    " + mediaType)
-
+            print("            " + mediaType)
+        print("------------------------")
 
 if __name__ == "__main__":
     main()
