@@ -61,8 +61,28 @@ def getMediaTypes(drive):
         # Report error message if device handle cannot be created
         sys.stderr.write("Error, cannot access device for drive " + drive + "\n")
 
+    # Get media types using IOCTL_DISK_GET_DRIVE_GEOMETRY method
     try:
-        # Get media types using IOCTL_STORAGE_GET_MEDIA_TYPES_EX method
+        diskGeometry = win32file.DeviceIoControl(handle,
+                                                 winioctlcon.IOCTL_DISK_GET_DRIVE_GEOMETRY,
+                                                 None,
+                                                 24)
+
+        # Resulting output (diskGeometry) documented here:
+        #
+        # https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-disk_geometry
+
+        offset = 8
+        mediaTypeCode = struct.unpack("<I", diskGeometry[offset:offset + 4])[0]
+        # Lookup corresponding media type string and add to output list
+        mediaType = lookupMediaType(mediaTypeCode)
+        mediaTypesOut.append(mediaType)
+
+    except:
+        pass
+
+    # Get media types using IOCTL_STORAGE_GET_MEDIA_TYPES_EX method
+    try:
         mediaTypes = win32file.DeviceIoControl(handle,
                                                winioctlcon.IOCTL_STORAGE_GET_MEDIA_TYPES_EX,
                                                None,
@@ -97,26 +117,6 @@ def getMediaTypes(drive):
             # Skip to position of next DEVICE_MEDIA_INFO structure
             offset += 24
         
-    except:
-        pass
-
-    try:
-        # Get media types using IOCTL_DISK_GET_DRIVE_GEOMETRY method
-        diskGeometry = win32file.DeviceIoControl(handle,
-                                                 winioctlcon.IOCTL_DISK_GET_DRIVE_GEOMETRY,
-                                                 None,
-                                                 24)
-
-        # Resulting output (diskGeometry) documented here:
-        #
-        # https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-disk_geometry
-
-        offset = 8
-        mediaTypeCode = struct.unpack("<I", diskGeometry[offset:offset + 4])[0]
-        # Lookup corresponding media type string and add to output list
-        mediaType = lookupMediaType(mediaTypeCode)
-        mediaTypesOut.append(mediaType)
-
     except:
         pass
 
