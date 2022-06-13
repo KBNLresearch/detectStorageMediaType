@@ -135,7 +135,7 @@ def lookupMediaType(mediaTypeCode):
   
     Based on:
 
-    https://github.com/SublimeText/Pywin32/blob/master/lib/x64/win32/lib/winioctlcon.py
+    https://github.com/mhammond/pywin32/blob/main/win32/Lib/winioctlcon.py
     """
     mediaTypes = {
         0: "Unknown",
