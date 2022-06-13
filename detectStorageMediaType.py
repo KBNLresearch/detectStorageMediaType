@@ -134,7 +134,7 @@ def lookupDeviceType(deviceCode):
 
     https://github.com/mhammond/pywin32/blob/main/win32/Lib/winioctlcon.py
 
-    (Convert original hex to decimal values)
+    (Converted original hex to decimal values)
     """
     deviceTypes = {
     1: "FILE_DEVICE_BEEP",
