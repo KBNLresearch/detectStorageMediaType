@@ -102,16 +102,21 @@ def getMediaTypes(drive):
         # https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-device_media_info
         #
         # This describes a union of 3 possible structures. Two of them  (DiskInfo, RemovableDiskInfo)
-        # are identical, only TapeInfo is different (with MediaType at 0 offset instead of 8!), but not
-        # relevant if we're not dealing with tape. 
+        # are identical, only TapeInfo is different (with MediaType at 0 offset instead of 8)
 
         offset = 8
 
         # Loop over DEVICE_MEDIA_INFO structures
         for _ in range(mediaInfoCount):
-            # Skip 8 byte cylinders value
-            offset += 8
-            mediaTypeCode = struct.unpack("<I", mediaInfo[offset:offset + 4])[0]
+            if deviceCode in [31, 32]:
+                # Tape device, mediaTypeCode is first item
+                mediaTypeCode = struct.unpack("<I", mediaInfo[offset:offset + 4])[0]
+                offset +=8
+            else:
+                # Not a tape device, so skip 8 byte cylinders value
+                offset += 8
+                mediaTypeCode = struct.unpack("<I", mediaInfo[offset:offset + 4])[0]
+
             # Lookup corresponding media type string and add to output list
             mediaType = lookupMediaType(mediaTypeCode)
             mediaTypesOut.append(mediaType)
