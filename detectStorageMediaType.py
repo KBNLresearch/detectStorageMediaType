@@ -111,17 +111,21 @@ def getDeviceInfo(drive, handle):
 
     # Get media info using IOCTL_STORAGE_GET_MEDIA_TYPES_EX method
     try:
-        mediaInfo = win32file.DeviceIoControl(handle,
+        getMediaTypes = win32file.DeviceIoControl(handle,
                                                winioctlcon.IOCTL_STORAGE_GET_MEDIA_TYPES_EX,
                                                None,
                                                2048)
 
+        # GET_MEDIA_TYPES structure documented here:
+        # https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-get_media_types
+        #
+
         # Device type
-        deviceCode = struct.unpack("<I", mediaInfo[0:4])[0]
+        deviceCode = struct.unpack("<I", getMediaTypes[0:4])[0]
         deviceType = lookupDeviceType(deviceCode)
 
         # Number of DEVICE_MEDIA_INFO structures to read
-        mediaInfoCount = struct.unpack("<I", mediaInfo[4:8])[0]
+        mediaInfoCount = struct.unpack("<I", getMediaTypes[4:8])[0]
 
         # Remaining bytes are one or more 32-byte DEVICE_MEDIA_INFO structures.
         # documented here:
@@ -137,12 +141,12 @@ def getDeviceInfo(drive, handle):
         for _ in range(mediaInfoCount):
             if deviceCode in [31, 32]:
                 # Tape device, mediaTypeCode is first item
-                mediaTypeCode = struct.unpack("<I", mediaInfo[offset:offset + 4])[0]
+                mediaTypeCode = struct.unpack("<I", getMediaTypes[offset:offset + 4])[0]
                 offset +=8
             else:
                 # Not a tape device, so skip 8 byte cylinders value
                 offset += 8
-                mediaTypeCode = struct.unpack("<I", mediaInfo[offset:offset + 4])[0]
+                mediaTypeCode = struct.unpack("<I", getMediaTypes[offset:offset + 4])[0]
 
             # Lookup corresponding supported media type string and add to output list
             mediaType = lookupMediaType(mediaTypeCode)
