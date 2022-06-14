@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 import struct
 import argparse
@@ -6,8 +8,9 @@ import win32file
 import winioctlcon
 
 """
-Script that demonstrates how to identify the media type of storage media attached to logical
-Windows drives using Python's Windows API wrapper interface.
+Script that demonstrates how to identify the media type of storage media attached to a logical
+Windows drive, as well as the device type and the media types that are supported by a device
+using Python's Windows API wrapper interface.
 Johan van der Knijff, KB, National Library of the Netherlands
 """
 
@@ -26,30 +29,15 @@ def parseCommandLine(parser):
     return args
 
 
-def getMediaTypes(drive):
+def createFileHandle(drive):
     """
-    Returns a list with one or more strings that identify the media type of a
-    logical Windows drive. Function uses both the IOCTL_STORAGE_GET_MEDIA_TYPES_EX
-    and IOCTL_DISK_GET_DRIVE_GEOMETRY methods (either of which may fail under certain)
-    conditions).
-
-    Codes are documented here:
-
-    https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ne-winioctl-media_type
-
-    and here:
-
-    https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ne-winioctl-storage_media_type
+    Creates file handle for a logical Windows drive
     """
-
-    # List with returned mediatype values
-    mediaTypesOut = []
-    deviceType = None
 
     # Low-level device name of device assigned to logical drive
     driveDevice =  "\\\\.\\" + drive + ":"
 
-    # Create a handle to access the device
+    # Create a file handle
     try:
         handle = win32file.CreateFile(driveDevice,
                                       0,
@@ -60,29 +48,68 @@ def getMediaTypes(drive):
                                       None)
     except:
         # Report error message if device handle cannot be created
+        handle = None
         sys.stderr.write("Error, cannot access device for drive " + drive + "\n")
 
-    # Get media types using IOCTL_DISK_GET_DRIVE_GEOMETRY method
+    return handle
+
+
+def getMediaType(drive, handle):
+    """
+    Returns Media Type from disk geometry.
+
+    Media types are documented here:
+
+    https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ne-winioctl-media_type
+    """
+
+    # Initialise output variables 
+    mediaType = None
+
+    # Get media type using IOCTL_DISK_GET_DRIVE_GEOMETRY method
     try:
         diskGeometry = win32file.DeviceIoControl(handle,
                                                  winioctlcon.IOCTL_DISK_GET_DRIVE_GEOMETRY,
                                                  None,
                                                  24)
 
-        # Resulting output (diskGeometry) documented here:
-        #
+        # Extract media type from diskGeometry structure (documented here:
         # https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-disk_geometry
+        # )
 
         offset = 8
         mediaTypeCode = struct.unpack("<I", diskGeometry[offset:offset + 4])[0]
-        # Lookup corresponding media type string and add to output list
+        # Lookup corresponding media type string
         mediaType = lookupMediaType(mediaTypeCode)
-        mediaTypesOut.append(mediaType)
 
     except:
         pass
 
-    # Get media types using IOCTL_STORAGE_GET_MEDIA_TYPES_EX method
+    return mediaType
+
+
+def getDeviceInfo(drive, handle):
+    """
+    
+    Returns a tuple with the following items:
+
+    - Device type string
+    - A list with the media types that are supported by the device
+
+    Media types are documented here:
+
+    https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ne-winioctl-media_type
+
+    and here:
+
+    https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ne-winioctl-storage_media_type
+    """
+
+    # Initialise output variables 
+    deviceType = None
+    supportedMediaTypes = []
+
+    # Get media info using IOCTL_STORAGE_GET_MEDIA_TYPES_EX method
     try:
         mediaInfo = win32file.DeviceIoControl(handle,
                                                winioctlcon.IOCTL_STORAGE_GET_MEDIA_TYPES_EX,
@@ -117,19 +144,18 @@ def getMediaTypes(drive):
                 offset += 8
                 mediaTypeCode = struct.unpack("<I", mediaInfo[offset:offset + 4])[0]
 
-            # Lookup corresponding media type string and add to output list
+            # Lookup corresponding supported media type string and add to output list
             mediaType = lookupMediaType(mediaTypeCode)
-            mediaTypesOut.append(mediaType)
+            supportedMediaTypes.append(mediaType)
             # Skip to position of next DEVICE_MEDIA_INFO structure
             offset += 24
-        
+
     except:
         pass
 
-    # Remove duplicate entries from output list
-    mediaTypesOut = list(set(mediaTypesOut))
 
-    return mediaTypesOut, deviceType
+    return deviceType, supportedMediaTypes
+
 
 def lookupDeviceType(deviceCode):
     """
@@ -320,9 +346,7 @@ def lookupMediaType(mediaTypeCode):
 
 def main():
     """
-    Get media type for list of logical Windows drive. First we
-    get the drive geometry, then we use that to get
-    the actual media type
+    Get media type and device info for one or more of logical Windows drives.
     """
 
     # Create argument parser
@@ -337,13 +361,23 @@ def main():
     for drive in myDrives:
         # Strip any trailing colons
         drive = drive.strip(":")
-        mediaTypes, deviceType = getMediaTypes(drive)
-        print("Drive " + drive + ":\n=============")
+        # Create file handle to access drive
+        driveHandle = createFileHandle(drive)
+        # Get media type of drive from disk geometry
+        mediaType = getMediaType(drive, driveHandle)
+        # Get device type and media types supported by device
+        deviceType, supportedMediaTypes = getDeviceInfo(drive, driveHandle)
+        # Print results to screen
+        print()
+        print('{:25}{:20}'.format("Drive:", drive))
+        if mediaType:
+            print('{:25}{:20}'.format("Media type:", mediaType))
         if deviceType:
-            print("Device type: " + deviceType)
-        print("Media types:")
-        for mediaType in mediaTypes:
-            print("             " + mediaType)
+            print('{:25}{:20}'.format("Device type:", deviceType))
+            print("Supported media types:")
+            for supMediaType in supportedMediaTypes:
+                print('{:25}{:20}'.format("", supMediaType))
+
 
 if __name__ == "__main__":
     main()
